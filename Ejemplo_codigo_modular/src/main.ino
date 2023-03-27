@@ -17,11 +17,3 @@ void loop() {
   lightSensorLoop();
   lorawanLoop();
 }
-
-
-
-
-
-
-
-
