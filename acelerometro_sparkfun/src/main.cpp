@@ -21,7 +21,7 @@
 #include "Arduino.h"
 #include <SparkFun_ADXL345.h>         // SparkFun ADXL345 Library
 
-void ADXL_ISR();
+void IRAM_ATTR ADXL_ISR();
 
 /*********** COMMUNICATION SELECTION ***********/
 /*    Comment Out The One You Are Not Using    */
@@ -30,7 +30,7 @@ ADXL345 adxl = ADXL345();             // USE FOR I2C COMMUNICATION
 
 /****************** INTERRUPT ******************/
 /*      Uncomment If Attaching Interrupt       */
-//int interruptPin = 2;                 // Setup pin 2 to be the interrupt pin (for most Arduino Boards)
+int interruptPin = 17;                 // Setup pin 2 to be the interrupt pin (for most Arduino Boards)
 
 
 /******************** SETUP ********************/
@@ -72,20 +72,22 @@ void setup(){
   adxl.setFreeFallDuration(30);       // (20 - 70) recommended - 5ms per increment
  
   // Setting all interupts to take place on INT1 pin
-  //adxl.setImportantInterruptMapping(1, 1, 1, 1, 1);     // Sets "adxl.setEveryInterruptMapping(single tap, double tap, free fall, activity, inactivity);" 
+  adxl.setImportantInterruptMapping(1, 1, 1, 1, 1);     // Sets "adxl.setEveryInterruptMapping(single tap, double tap, free fall, activity, inactivity);" 
                                                         // Accepts only 1 or 2 values for pins INT1 and INT2. This chooses the pin on the ADXL345 to use for Interrupts.
                                                         // This library may have a problem using INT2 pin. Default to INT1 pin.
   
   // Turn on Interrupts for each mode (1 == ON, 0 == OFF)
-  adxl.InactivityINT(1);
-  adxl.ActivityINT(1);
+  //adxl.InactivityINT(1);
+  //adxl.ActivityINT(1);
   adxl.FreeFallINT(1);
-  adxl.doubleTapINT(1);
-  adxl.singleTapINT(1);
+  //adxl.doubleTapINT(1);
+  //adxl.singleTapINT(1);
   
-//attachInterrupt(digitalPinToInterrupt(interruptPin), ADXL_ISR, RISING);   // Attach Interrupt
+attachInterrupt(digitalPinToInterrupt(interruptPin), ADXL_ISR, RISING);   // Attach Interrupt
 
 }
+
+bool interruptTriggered = 0;
 
 /****************** MAIN CODE ******************/
 /*     Accelerometer Readings and Interrupt    */
@@ -93,7 +95,7 @@ void loop(){
   
   // Accelerometer Readings
   int x,y,z;   
-  adxl.readAccel(&x, &y, &z);         // Read the accelerometer values and store them in variables declared above x,y,z
+  //adxl.readAccel(&x, &y, &z);         // Read the accelerometer values and store them in variables declared above x,y,z
 
   // Output Results to Serial
   /* UNCOMMENT TO VIEW X Y Z ACCELEROMETER VALUES */  
@@ -103,48 +105,52 @@ void loop(){
   //Serial.print(", ");
   //Serial.println(z); 
   
-  ADXL_ISR();
+  //ADXL_ISR();
   // You may also choose to avoid using interrupts and simply run the functions within ADXL_ISR(); 
   //  and place it within the loop instead.  
   // This may come in handy when it doesn't matter when the action occurs. 
+
+  if (interruptTriggered) {
+    byte interruptReason = adxl.getInterruptSource();
+    // Free Fall Detection
+    if(adxl.triggered(interruptReason, ADXL345_FREE_FALL)){
+      Serial.println("*** FREE FALL DETECTED***");
+      //add code here to do when free fall is sensed
+    } 
+    
+    // Inactivity
+    if(adxl.triggered(interruptReason, ADXL345_INACTIVITY)){
+      Serial.println("*** INACTIVITY ***");
+      //add code here to do when inactivity is sensed
+    }
+    
+    // Activity
+    if(adxl.triggered(interruptReason, ADXL345_ACTIVITY)){
+      Serial.println("*** ACTIVITY ***"); 
+      //add code here to do when activity is sensed
+    }
+    
+    // Double Tap Detection
+    if(adxl.triggered(interruptReason, ADXL345_DOUBLE_TAP)){
+      Serial.println("*** DOUBLE TAP ***");
+      //add code here to do when a 2X tap is sensed
+    }
+    
+    // Tap Detection
+    if(adxl.triggered(interruptReason, ADXL345_SINGLE_TAP)){
+      Serial.println("*** TAP ***");
+      //add code here to do when a tap is sensed
+    } 
+      interruptTriggered = 0;
+  }
 
 }
 
 /********************* ISR *********************/
 /* Look for Interrupts and Triggered Action    */
-void ADXL_ISR() {
-  
+void IRAM_ATTR ADXL_ISR() {
+  interruptTriggered = true;
   // getInterruptSource clears all triggered actions after returning value
   // Do not call again until you need to recheck for triggered actions
-  byte interrupts = adxl.getInterruptSource();
   
-  // Free Fall Detection
-  if(adxl.triggered(interrupts, ADXL345_FREE_FALL)){
-    Serial.println("*** FREE FALL ***");
-    //add code here to do when free fall is sensed
-  } 
-  
-  // Inactivity
-  if(adxl.triggered(interrupts, ADXL345_INACTIVITY)){
-    Serial.println("*** INACTIVITY ***");
-     //add code here to do when inactivity is sensed
-  }
-  
-  // Activity
-  if(adxl.triggered(interrupts, ADXL345_ACTIVITY)){
-    Serial.println("*** ACTIVITY ***"); 
-     //add code here to do when activity is sensed
-  }
-  
-  // Double Tap Detection
-  if(adxl.triggered(interrupts, ADXL345_DOUBLE_TAP)){
-    Serial.println("*** DOUBLE TAP ***");
-     //add code here to do when a 2X tap is sensed
-  }
-  
-  // Tap Detection
-  if(adxl.triggered(interrupts, ADXL345_SINGLE_TAP)){
-    Serial.println("*** TAP ***");
-     //add code here to do when a tap is sensed
-  } 
 }
